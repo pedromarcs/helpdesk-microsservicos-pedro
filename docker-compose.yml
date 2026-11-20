@@ -1,15 +1,19 @@
 services:
-  helpdesk:
-    build: .
+  usuarios:
+    build: ./servico-usuarios
+    # TEMPORÁRIO: porta aberta só para testar este serviço sozinho.
+    # Quando o gateway existir, estas duas linhas saem
+    # (só o gateway pode ficar exposto).
     ports:
-      - "127.0.0.1:8000:8000"   # só acessível pelo próprio computador
+      - "127.0.0.1:8001:8000"
     env_file:
       - path: .env
         required: false
     environment:
+      JWT_SEGREDO: ${JWT_SEGREDO:?defina o JWT_SEGREDO no arquivo .env}
       DADOS_EXEMPLO: ${DADOS_EXEMPLO:-1}
     volumes:
-      - dados:/dados
+      - usuarios_dados:/dados      # o banco deste serviço
     read_only: true
     tmpfs:
       - /tmp
@@ -19,4 +23,4 @@ services:
       - ALL
 
 volumes:
-  dados:
+  usuarios_dados:
