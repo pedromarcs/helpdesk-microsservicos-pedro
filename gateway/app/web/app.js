@@ -7,8 +7,19 @@ const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const fmt = (s) => new Date(s).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const ROTULO = { aberto: "aberto", em_atendimento: "em atendimento", resolvido: "resolvido", fechado: "fechado" };
 
-let token = null, eu = null, usuarios = [];
+// Guarda e lê dados da sessão do navegador (somem quando a aba é fechada)
+function guardar(chave, valor) {
+  try { valor == null ? sessionStorage.removeItem(chave) : sessionStorage.setItem(chave, JSON.stringify(valor)); } catch (e) {}
+}
+function ler(chave, padrao) {
+  try { return JSON.parse(sessionStorage.getItem(chave)) ?? padrao; } catch (e) { return padrao; }
+}
+
+let token = null;
 try { token = sessionStorage.getItem("token"); } catch (e) { token = null; }
+// Quem está logado e a lista de usuários ficam guardados: se o serviço de Usuários cair,
+// a tela continua funcionando com o que já sabe (o token segue valendo nos outros serviços)
+let eu = ler("eu", null), usuarios = ler("usuarios", []);
 
 async function req(metodo, caminho, corpo) {
   const cab = { "Content-Type": "application/json" };
@@ -21,7 +32,11 @@ async function req(metodo, caminho, corpo) {
 }
 
 function guardarToken(t) { token = t; try { t ? sessionStorage.setItem("token", t) : sessionStorage.removeItem("token"); } catch (e) {} }
-function sair() { guardarToken(null); eu = null; mostrar(false); }
+function sair() {
+  guardarToken(null); eu = null; usuarios = [];
+  guardar("eu", null); guardar("usuarios", null);
+  mostrar(false);
+}
 function mostrar(logado) {
   $("tela-login").hidden = logado; $("tela-sistema").hidden = !logado; $("barra").hidden = !logado;
 }
@@ -30,16 +45,24 @@ const equipe = () => eu && (eu.perfil === "tecnico" || eu.perfil === "admin");
 
 async function carregar() {
   $("erro").textContent = "";
-  eu = await req("GET", "/auth/eu");
-  $("quem").textContent = eu.nome + " (" + eu.perfil + ")";
   // Cada parte da tela carrega separada: se um serviço cair, o resto continua aparecendo
   const avisosDeFalha = [];
+  try {
+    eu = await req("GET", "/auth/eu");
+    guardar("eu", eu);
+  } catch (e) {
+    // Sem o serviço de Usuários, seguimos com o usuário guardado no login.
+    // (Se a sessão expirou, sair() já zerou o "eu" e o erro segue adiante.)
+    if (!eu) throw e;
+    avisosDeFalha.push(e.message);
+  }
+  $("quem").textContent = eu.nome + " (" + eu.perfil + ")";
   const tentar = (caminho, padrao) => req("GET", caminho).catch((e) => { avisosDeFalha.push(e.message); return padrao; });
   const [lista, ativos, chamados, painel, avisos] = await Promise.all([
-    tentar("/usuarios", []), tentar("/ativos", []), tentar("/chamados", []),
+    tentar("/usuarios", null), tentar("/ativos", []), tentar("/chamados", []),
     tentar("/chamados/painel", { total: 0, por_status: {}, atrasados: 0 }), tentar("/notificacoes", []),
   ]);
-  usuarios = lista;
+  if (lista) { usuarios = lista; guardar("usuarios", lista); }  // se falhou, fica a última lista conhecida
   const ps = painel.por_status;
   $("kpis").innerHTML = [["Total", painel.total], ["Abertos", ps.aberto || 0], ["Em atendimento", ps.em_atendimento || 0],
     ["Resolvidos", (ps.resolvido || 0) + (ps.fechado || 0)], ["Atrasados", painel.atrasados]]
@@ -91,6 +114,7 @@ $("tela-login").addEventListener("submit", async (e) => {
   try {
     const r = await req("POST", "/auth/login", { email: $("email").value, senha: $("senha").value });
     guardarToken(r.access_token); $("senha").value = "";
+    eu = r.usuario; guardar("eu", eu);
     mostrar(true); await carregar();
   } catch (err) { $("erro-login").textContent = err.message; }
 });
