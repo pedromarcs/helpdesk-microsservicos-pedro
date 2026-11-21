@@ -1,9 +1,7 @@
 services:
   usuarios:
     build: ./servico-usuarios
-    # TEMPORÁRIO: porta aberta só para testar este serviço sozinho.
-    # Quando o gateway existir, estas duas linhas saem
-    # (só o gateway pode ficar exposto).
+    # TEMPORÁRIO: porta aberta só para testar. Sai quando o gateway existir.
     ports:
       - "127.0.0.1:8001:8000"
     env_file:
@@ -13,7 +11,28 @@ services:
       JWT_SEGREDO: ${JWT_SEGREDO:?defina o JWT_SEGREDO no arquivo .env}
       DADOS_EXEMPLO: ${DADOS_EXEMPLO:-1}
     volumes:
-      - usuarios_dados:/dados      # o banco deste serviço
+      - usuarios_dados:/dados
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  inventario:
+    build: ./servico-inventario
+    # TEMPORÁRIO: porta aberta só para testar. Sai quando o gateway existir.
+    ports:
+      - "127.0.0.1:8002:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      JWT_SEGREDO: ${JWT_SEGREDO:?defina o JWT_SEGREDO no arquivo .env}
+      DADOS_EXEMPLO: ${DADOS_EXEMPLO:-1}
+    volumes:
+      - inventario_dados:/dados
     read_only: true
     tmpfs:
       - /tmp
@@ -24,3 +43,4 @@ services:
 
 volumes:
   usuarios_dados:
+  inventario_dados:
