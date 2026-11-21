@@ -8,6 +8,13 @@ permissions:
 jobs:
   testes:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        servico: [servico-usuarios, servico-inventario, servico-chamados, gateway]
+    defaults:
+      run:
+        working-directory: ${{ matrix.servico }}
     steps:
       - uses: actions/checkout@v7
         with:

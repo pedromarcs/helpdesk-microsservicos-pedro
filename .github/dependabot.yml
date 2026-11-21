@@ -1,14 +1,22 @@
 version: 2
 updates:
   - package-ecosystem: pip
-    directory: /
-    schedule:
-      interval: weekly
-  - package-ecosystem: github-actions
-    directory: /
+    directories:
+      - "/servico-usuarios"
+      - "/servico-inventario"
+      - "/servico-chamados"
+      - "/gateway"
     schedule:
       interval: weekly
   - package-ecosystem: docker
+    directories:
+      - "/servico-usuarios"
+      - "/servico-inventario"
+      - "/servico-chamados"
+      - "/gateway"
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
