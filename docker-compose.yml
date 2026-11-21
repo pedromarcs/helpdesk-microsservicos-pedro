@@ -41,6 +41,32 @@ services:
     cap_drop:
       - ALL
 
+  chamados:
+    build: ./servico-chamados
+    # TEMPORÁRIO: porta aberta só para testar. Sai quando o gateway existir.
+    ports:
+      - "127.0.0.1:8003:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      JWT_SEGREDO: ${JWT_SEGREDO:?defina o JWT_SEGREDO no arquivo .env}
+      DADOS_EXEMPLO: ${DADOS_EXEMPLO:-1}
+      # Dentro do Docker, os serviços se chamam pelo nome, não por localhost
+      USUARIOS_URL: http://usuarios:8000
+      INVENTARIO_URL: http://inventario:8000
+      TIMEOUT_SERVICOS: "3"
+    volumes:
+      - chamados_dados:/dados
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
 volumes:
   usuarios_dados:
   inventario_dados:
+  chamados_dados:
